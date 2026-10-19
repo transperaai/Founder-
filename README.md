@@ -4,7 +4,7 @@ Internal MVP: captures how an agency founder sells from their Fathom calls, buil
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Base UI) · Prisma 6 + Postgres (Neon in production) · Vercel. Background jobs (Inngest), Vercel Blob and the Claude API arrive with their tickets.
+Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Base UI) · Prisma 6 + Postgres (Neon in production) · Vercel (project `founder-squared`, deploys `main`; builds run `prisma migrate deploy`). Background jobs (Inngest), Vercel Blob and the Claude API arrive with their tickets.
 
 ## Local setup
 
@@ -28,7 +28,8 @@ npm run dev                      # http://localhost:3000
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL` | Postgres connection string (pooled on Neon) |
+| `DATABASE_URL_UNPOOLED` | Direct connection for migrations (same as `DATABASE_URL` locally) |
 
 ## Demo data
 
