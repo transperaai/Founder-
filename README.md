@@ -4,7 +4,7 @@ Internal MVP: captures how an agency founder sells from their Fathom calls, buil
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Base UI) · Prisma 6 + Postgres (Neon in production) · Vercel (project `founder-squared`, deploys `main`; builds run `prisma migrate deploy`). Claude API (`claude-sonnet-5-5`) for analysis. Background jobs (Inngest) and Vercel Blob arrive with their tickets.
+Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Base UI) · Prisma 6 + Postgres (Neon in production) · Vercel (project `founder-squared`, deploys `main`; builds run `prisma migrate deploy`). Claude API (`claude-sonnet-5-5`) for analysis. Inngest for background jobs. Vercel Blob for media (arrives with #7).
 
 ## Local setup
 
@@ -21,7 +21,7 @@ npm run dev                      # http://localhost:3000 (DEMO_MODE=true for dem
 | `npm run seed` | Loads demo data into an empty database |
 | `npm run seed:reset` | Wipes every table, then loads demo data |
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
-| `npm test` | Unit tests (Vitest) |
+| `npm test` | Unit tests, plus database tests (`*.db.test.ts`) against `founder_test` (Vitest) |
 | `npm run test:e2e` | Playwright smoke tests (needs a seeded database) |
 
 ### Environment variables
@@ -36,6 +36,10 @@ npm run dev                      # http://localhost:3000 (DEMO_MODE=true for dem
 | `AUTH_MICROSOFT_ENTRA_ID_ID` / `_SECRET` / `_ISSUER` | Microsoft sign-in (requests `Calendars.Read`) |
 | `FOUNDER_EMAILS` | Extra emails allowed to sign in (the first user to sign in is always allowed) |
 | `ANTHROPIC_API_KEY` | Claude API key for every AI step. Without it, AI steps report "not configured" and the UI falls back to manual entry |
+| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Inngest Cloud keys (set by the Vercel integration). Without them, analysis runs in-process after the response |
+| `INNGEST_DEV` | `1` to send jobs to a local Inngest dev server (`npx inngest-cli@latest dev`) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token (set by the Blob integration); used to store and delete call media |
+| `TEST_DATABASE_URL` | Database for `*.db.test.ts`. Defaults to `DATABASE_URL` with the database renamed `founder_test`; it is migrated and truncated by the tests |
 | `DEMO_MODE` | `true` adds "Continue as the demo founder" and seeds demo data on Vercel builds. Never with real client data |
 
 ## Sign-in
@@ -69,6 +73,16 @@ Every AI step calls `runStep` in `src/lib/ai/harness.ts`:
 - Token usage for every attempt is logged in `model_usages`, against the call when there is one.
 - Refusals fall back server-side (`fallbacks: "default"`).
 - Tests pass a fake `client`; nothing in the test suite calls the real API.
+
+## Analysis pipeline
+
+`analyseCall(callId)` in `src/lib/pipeline` is the single entry point: normalise → classify → segment into moments, then (later tickets) the founder or rep path. Each stage is idempotent (moments are replaced, never appended), so re-running a call is safe.
+
+- Status flows `importing → analysing → ready | skipped | error`. Failures store a message safe to show, and the calls table offers Retry.
+- A call whose attendees all share the founder's email domain is `internal` and skipped without a model call. Otherwise the model classifies it from the first 10 minutes.
+- Overriding the call type in the table sets `callTypeOverridden` and re-runs the pipeline with the founder's choice.
+- `requestAnalysis(callIds)` queues work: an Inngest event (`call/analyse.requested`, one `step.run` per stage, concurrency 1 per call) when Inngest is configured, otherwise in-process via `after()`.
+- Pipeline tests run fixture calls (`tests/fixtures/calls`) through `analyseCall` with `fakeClaude`, against the test database.
 
 ## Conventions
 

@@ -1,0 +1,9 @@
+{
+  "title": "Weekly pipeline review",
+  "durationS": 60,
+  "attendeeEmails": ["peter@brightside.agency", "sam@brightside.agency"],
+  "transcript": [
+    { "speaker": "Peter Hale", "email": "peter@brightside.agency", "startS": 0, "endS": 20, "text": "Morning Sam, let's run through the pipeline." },
+    { "speaker": "Sam Okafor", "email": "sam@brightside.agency", "startS": 21, "endS": 60, "text": "Northwind wants a workshop on Tuesday, and Meridian asked about the loyalty app." }
+  ]
+}

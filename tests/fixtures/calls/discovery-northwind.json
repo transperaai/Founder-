@@ -1,0 +1,15 @@
+{
+  "title": "Northwind Retail <> Brightside: intro",
+  "durationS": 182,
+  "attendeeEmails": ["peter@brightside.agency", "dana@northwind.com"],
+  "transcript": [
+    { "speaker": "Peter Hale", "email": "peter@brightside.agency", "startS": 0, "endS": 14, "text": "Thanks for making time, Dana. I've got us down for 30 minutes: I'd like to understand where Northwind is today, then share how we might help." },
+    { "speaker": "Dana Price", "email": "dana@northwind.com", "startS": 15, "endS": 30, "text": "Sounds good. Online sales flattened this year and the board wants a plan before Q3." },
+    { "speaker": "Peter Hale", "email": "peter@brightside.agency", "startS": 31, "endS": 40, "text": "What have you tried so far, and how did it go?" },
+    { "speaker": "Dana Price", "email": "dana@northwind.com", "startS": 41, "endS": 62, "text": "We had an agency last year. Honestly, they were expensive and we never saw the numbers move." },
+    { "speaker": "Peter Hale", "email": "peter@brightside.agency", "startS": 63, "endS": 95, "text": "That's fair. When Harbour Health came to us they'd been burned the same way; we tied our fee to repeat orders and they grew 22% in two quarters." },
+    { "speaker": "Dana Price", "email": "dana@northwind.com", "startS": 96, "endS": 120, "text": "That's interesting. What would a first project with you look like, and when could you start?" },
+    { "speaker": "Peter Hale", "email": "peter@brightside.agency", "startS": 121, "endS": 150, "text": "Let's book a 45-minute workshop next Tuesday with your ecommerce lead, and I'll bring a draft plan." },
+    { "speaker": "Dana Price", "email": "dana@northwind.com", "startS": 151, "endS": 182, "text": "Tuesday works. I'll send the invite." }
+  ]
+}
