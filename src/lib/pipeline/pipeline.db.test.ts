@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { classifyCallPrompt } from "@/prompts/classify-call";
+import { scoreHabitsPrompt } from "@/prompts/score-habits";
 import { segmentMomentsPrompt } from "@/prompts/segment-moments";
 import { createCall, createFounder, fixtures } from "../../../tests/fixtures/calls";
 import { fakeClaude } from "../../../tests/fixtures/fake-claude";
@@ -21,6 +22,7 @@ const fakeModel = () =>
   fakeClaude([
     [classifyCallPrompt, { callType: "discovery", reason: "An intro call exploring the client's situation" }],
     [segmentMomentsPrompt, segmentation],
+    [scoreHabitsPrompt, { habits: [], awarenessLevel: "problem_aware", awarenessMatched: true }],
   ]);
 
 describe("analyseCall", () => {
@@ -47,12 +49,12 @@ describe("analyseCall", () => {
     expect(objection.text).toContain("we never saw the numbers move");
     expect(objection.context).toEqual({ callType: "discovery", dealStage: "early" });
 
-    // Classification only sees the opening; segmentation sees the whole call.
-    expect(requests).toHaveLength(2);
+    // Classification only sees the opening; segmentation sees the whole call; then scoring.
+    expect(requests).toHaveLength(3);
     expect(requests[0].user).toContain("[0s–14s] Peter Hale: Thanks for making time");
     expect(requests[1].user).toContain("Call type: discovery");
     const usage = await db.modelUsage.findMany({ where: { callId: call.id } });
-    expect(usage.map((u) => u.step).sort()).toEqual(["classify_call", "segment_moments"]);
+    expect(usage.map((u) => u.step).sort()).toEqual(["classify_call", "score_habits", "segment_moments"]);
     expect(usage[0].promptVersion).toMatch(/@v1$/);
   });
 
@@ -92,8 +94,7 @@ describe("analyseCall", () => {
     await analyseCall(call.id, { client });
 
     expect((await db.call.findUniqueOrThrow({ where: { id: call.id } })).callType).toBe("pitch");
-    expect(requests).toHaveLength(1);
-    expect(requests[0].system).toBe(segmentMomentsPrompt.system);
+    expect(requests.map((r) => r.system)).toEqual([segmentMomentsPrompt.system, scoreHabitsPrompt.system]);
     expect((await db.moment.findFirstOrThrow({ where: { callId: call.id } })).context).toMatchObject({ callType: "pitch" });
   });
 
@@ -142,6 +143,6 @@ describe("analyseCall", () => {
     const call = await createCall(fixtures.discovery);
     const names: string[] = [];
     await analyseCall(call.id, { client: fakeModel().client, run: (name, fn) => (names.push(name), fn()) });
-    expect(names).toEqual(["start", "normalise", "classify", "segment", "finish"]);
+    expect(names).toEqual(["start", "normalise", "classify", "segment", "score", "finish"]);
   });
 });

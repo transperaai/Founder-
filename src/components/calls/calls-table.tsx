@@ -1,6 +1,7 @@
 "use client";
 
 import type { CallOutcome, CallRole, CallSource, CallStatus, CallType } from "@prisma/client";
+import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { deleteCall, retryCall, setCallTag } from "@/app/actions/calls";
@@ -82,7 +83,9 @@ function CallRowView({ call }: { call: CallRow }) {
   return (
     <TableRow data-call-id={call.id} aria-busy={pending}>
       <TableCell className="max-w-64 truncate font-medium" title={call.title}>
-        {call.title}
+        <Link href={`/founder/calls/${call.id}`} className="hover:underline">
+          {call.title}
+        </Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{new Date(call.startedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</TableCell>
       <TableCell className="text-muted-foreground">{formatDuration(call.durationS)}</TableCell>

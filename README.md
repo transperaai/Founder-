@@ -92,6 +92,8 @@ Every AI step calls `runStep` in `src/lib/ai/harness.ts`:
 - A call whose attendees all share the founder's email domain is `internal` and skipped without a model call. Otherwise the model classifies it from the first 10 minutes.
 - Overriding the call type in the table sets `callTypeOverridden` and re-runs the pipeline with the founder's choice.
 - `requestAnalysis(callIds)` queues work: an Inngest event (`call/analyse.requested`, one `step.run` per stage, concurrency 1 per call) when Inngest is configured, otherwise in-process via `after()`.
+- **Scoring** (`score` stage, every non-internal call, founder calls included): applicable habits come from the `habits` table (call type in "applies to"; objection habits only with an objection moment). The model judges the rest against their rubrics (`score-habits` prompt) and must cite an evidence moment for every done habit; computed habits (H6) use speaker-turn durations. total = round(done ÷ applicable × 100). `benchmarkTotal` is the founder's average for the call type at scoring time (`founderAverages()` in `src/lib/scoring/benchmarks.ts`). Re-scoring replaces the scorecard. Pure rules live in `src/lib/scoring`.
+- Founder → Calls → a call shows its scorecard and moments; evidence plays as a time range of the recording.
 - Pipeline tests run fixture calls (`tests/fixtures/calls`) through `analyseCall` with `fakeClaude`, against the test database.
 
 ## Conventions

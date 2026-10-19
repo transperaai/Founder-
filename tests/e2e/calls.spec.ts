@@ -106,3 +106,20 @@ test("deleting a call asks for confirmation, then removes it", async ({ page }) 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("E2E call to delete")).toHaveCount(0);
 });
+
+test("a call's detail page shows its scorecard with playable evidence", async ({ page }) => {
+  const call = await db.call.findFirstOrThrow({ where: { title: "Atlas Logistics – discovery" }, include: { scorecard: true } });
+  await page.goto("/founder/calls");
+  await page.getByRole("link", { name: "Atlas Logistics – discovery" }).click();
+  await expect(page).toHaveURL(new RegExp(`/founder/calls/${call.id}$`));
+
+  await expect(page.getByText("Scorecard")).toBeVisible();
+  await expect(page.getByText("Founder benchmark")).toBeVisible();
+  const habits = page.getByRole("list", { name: "Habits" }).getByRole("listitem");
+  await expect(habits).toHaveCount((call.scorecard!.habitResults as unknown[]).length);
+  await expect(habits.filter({ hasText: "H6 ·" })).toContainText("Client talked");
+
+  // Evidence plays as a time range of the call's recording. (Headless Chromium can't decode the demo MP4, so this checks the wiring.)
+  await expect(page.getByLabel("Call recording")).toHaveAttribute("src", call.mediaUrl!);
+  await expect(page.getByRole("button", { name: /^Play H\d+ evidence at \d+:\d\d$/ }).first()).toBeEnabled();
+});
