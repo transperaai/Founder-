@@ -1,15 +1,16 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { completeOnboarding } from "@/app/actions/auth";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCurrentUser } from "@/lib/session";
 
 export const metadata = { title: "Get started · Founder²" };
 
 const steps = [
-  { title: "Connect Fathom", detail: "Paste your Fathom API key, or upload transcripts instead." },
   { title: "Tell us about your business", detail: "Five quick questions, turned into a profile you approve." },
+  { title: "Connect Fathom", detail: "Paste your Fathom API key, or upload transcripts instead." },
   { title: "Import and tag your calls", detail: "Pick 10–20 calls; tag type, outcome and who led them." },
   { title: "Build your playbook", detail: "We extract how you sell, filtered for quality." },
 ];
@@ -45,13 +46,18 @@ export default async function OnboardingPage() {
             </p>
           )}
           <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            Connecting Fathom is being built (GitHub issue #6). You can explore the app in the meantime.
+            Connecting Fathom is being built (GitHub issue #6), so setup starts with your business for now.
           </p>
-          <form action={completeOnboarding}>
-            <Button type="submit" className="w-full">
-              Continue to the app
-            </Button>
-          </form>
+          <div className="flex flex-col gap-2">
+            <Link href="/onboarding/context" className={buttonVariants()}>
+              Start with your business
+            </Link>
+            <form action={completeOnboarding}>
+              <Button type="submit" variant="ghost" className="w-full">
+                Skip setup for now
+              </Button>
+            </form>
+          </div>
         </CardContent>
       </Card>
     </main>

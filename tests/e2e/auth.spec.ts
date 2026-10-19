@@ -19,7 +19,7 @@ test("first sign-in lands on onboarding; returning sign-in lands on the view's h
   try {
     await signInAsDemoFounder(page);
     await expect(page).toHaveURL(/\/onboarding$/);
-    await page.getByRole("button", { name: "Continue to the app" }).click();
+    await page.getByRole("button", { name: "Skip setup for now" }).click();
     await expect(page).toHaveURL(/\/founder\/inbox$/);
 
     await page.getByRole("button", { name: "Sign out" }).click();

@@ -16,6 +16,7 @@
     "build:vercel": "bash scripts/vercel-build.sh"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@base-ui/react": "^1.9.0",
     "@prisma/client": "^6.19.3",
     "class-variance-authority": "^0.7.1",

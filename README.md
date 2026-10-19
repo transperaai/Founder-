@@ -4,7 +4,7 @@ Internal MVP: captures how an agency founder sells from their Fathom calls, buil
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Base UI) · Prisma 6 + Postgres (Neon in production) · Vercel (project `founder-squared`, deploys `main`; builds run `prisma migrate deploy`). Background jobs (Inngest), Vercel Blob and the Claude API arrive with their tickets.
+Next.js 16 (App Router) · TypeScript · Tailwind 4 · shadcn/ui (Base UI) · Prisma 6 + Postgres (Neon in production) · Vercel (project `founder-squared`, deploys `main`; builds run `prisma migrate deploy`). Claude API (`claude-sonnet-5-5`) for analysis. Background jobs (Inngest) and Vercel Blob arrive with their tickets.
 
 ## Local setup
 
@@ -35,6 +35,7 @@ npm run dev                      # http://localhost:3000 (DEMO_MODE=true for dem
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google sign-in (requests `calendar.readonly`) |
 | `AUTH_MICROSOFT_ENTRA_ID_ID` / `_SECRET` / `_ISSUER` | Microsoft sign-in (requests `Calendars.Read`) |
 | `FOUNDER_EMAILS` | Extra emails allowed to sign in (the first user to sign in is always allowed) |
+| `ANTHROPIC_API_KEY` | Claude API key for every AI step. Without it, AI steps report "not configured" and the UI falls back to manual entry |
 | `DEMO_MODE` | `true` adds "Continue as the demo founder" and seeds demo data on Vercel builds. Never with real client data |
 
 ## Sign-in
@@ -58,6 +59,16 @@ To register OAuth apps:
 - rep progress: baseline 46, focus habit H13 at 3 of 4, H5 mastered
 
 Report sample numbers live in `src/lib/demo/report-samples.ts`.
+
+## AI steps
+
+Every AI step calls `runStep` in `src/lib/ai/harness.ts`:
+
+- The prompt is a versioned module in `src/prompts/`. Bump its `version` when the text changes; outputs store `id@version`.
+- Output is JSON constrained by a Zod schema (sent to the API as a JSON schema), validated, and retried once if invalid. Failures throw a typed `AiStepError` (`not_configured`, `invalid_output`, `refusal`, `api_error`).
+- Token usage for every attempt is logged in `model_usages`, against the call when there is one.
+- Refusals fall back server-side (`fallbacks: "default"`).
+- Tests pass a fake `client`; nothing in the test suite calls the real API.
 
 ## Conventions
 

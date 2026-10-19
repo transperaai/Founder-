@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader, UnderConstruction } from "@/components/placeholders";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,16 @@ export default async function SettingsPage() {
             {!user.calendarAccessGranted && (
               <p className="text-muted-foreground">Pre-call briefs are hidden. Sign out and sign in again to grant calendar access.</p>
             )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Business context</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <Link href="/founder/settings/business-context" className="underline underline-offset-4">
+              View and edit your business profile
+            </Link>
           </CardContent>
         </Card>
         <UnderConstruction issue={6} />
