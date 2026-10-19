@@ -9,7 +9,7 @@
     "lint": "eslint",
     "seed": "tsx prisma/seed/index.ts",
     "seed:reset": "tsx prisma/seed/index.ts --reset",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate"
