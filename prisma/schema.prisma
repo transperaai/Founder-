@@ -154,25 +154,27 @@ model BusinessContext {
 }
 
 model Call {
-  id                String      @id @default(cuid())
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
-  source            CallSource
-  fathomRecordingId String?     @unique @map("fathom_recording_id")
-  title             String
-  startedAt         DateTime    @map("started_at")
-  durationS         Int         @map("duration_s")
+  id                 String      @id @default(cuid())
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+  source             CallSource
+  fathomRecordingId  String?     @unique @map("fathom_recording_id")
+  title              String
+  startedAt          DateTime    @map("started_at")
+  durationS          Int         @map("duration_s")
   /// Normalised speaker turns: [{ speaker, email?, startS, endS, text }].
-  transcript        Json
-  attendeeEmails    String[]    @map("attendee_emails")
+  transcript         Json
+  attendeeEmails     String[]    @map("attendee_emails")
   /// Email domain of the client side of the call; groups calls into a "deal".
-  clientDomain      String?     @map("client_domain")
-  mediaUrl          String?     @map("media_url")
-  callType          CallType?   @map("call_type")
-  outcome           CallOutcome @default(open)
-  role              CallRole
-  status            CallStatus  @default(importing)
-  errorMessage      String?     @map("error_message")
+  clientDomain       String?     @map("client_domain")
+  mediaUrl           String?     @map("media_url")
+  callType           CallType?   @map("call_type")
+  /// Set by the founder in the calls table; the pipeline then keeps it instead of classifying.
+  callTypeOverridden Boolean     @default(false) @map("call_type_overridden")
+  outcome            CallOutcome @default(open)
+  role               CallRole
+  status             CallStatus  @default(importing)
+  errorMessage       String?     @map("error_message")
 
   moments         Moment[]
   scorecard       Scorecard?

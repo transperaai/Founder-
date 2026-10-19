@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ComingSoon, PageHeader } from "@/components/placeholders";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
-import { RECOMMENDED_CALLS, callTypeLabel, coverage } from "@/lib/coverage";
+import { callTypeLabel } from "@/lib/calls/labels";
+import { RECOMMENDED_CALLS, coverage } from "@/lib/coverage";
 
 export const metadata = { title: "Coverage check · Founder²" };
 

@@ -21,11 +21,3 @@ export function coverage(calls: { callType: CallType | null }[]): Coverage {
     }),
   };
 }
-
-export const callTypeLabel: Record<CallType, string> = {
-  discovery: "Discovery",
-  pitch: "Pitch",
-  account_review: "Account review",
-  negotiation: "Negotiation",
-  internal: "Internal",
-};
