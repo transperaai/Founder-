@@ -62,6 +62,21 @@ describe("Fathom client", () => {
     expect((await client.getTranscript(1).catch((e) => e)).code).toBe("not_found");
   });
 
+  it("strips whitespace and invisible characters a pasted key often carries", async () => {
+    const { fake, client } = await setup(`\u200B ${VALID_KEY}\n\uFEFF`);
+    await client.listMeetings();
+    expect(fake.requests[0].apiKey).toBe(VALID_KEY);
+  });
+
+  it("refuses a key with characters a header can't carry, without sending it", async () => {
+    const { fake, client } = await setup(`${VALID_KEY}\u2019`);
+    const error = await client.listMeetings().catch((e) => e);
+    expect(error.code).toBe("unauthorized");
+    expect(error.message).toContain("characters that can't be sent");
+    expect(error.message).not.toContain(VALID_KEY);
+    expect(fake.requests).toHaveLength(0);
+  });
+
   it("treats an unreachable server as unavailable", async () => {
     // A port that was just free: nothing is listening on it.
     const fake = createFakeFathom();

@@ -85,6 +85,16 @@ function networkCause(error: unknown) {
   return cause?.code ?? cause?.errors?.[0]?.code ?? cause?.message ?? (error as Error)?.name ?? "unknown";
 }
 
+/**
+ * An API key as pasted: whitespace and invisible characters (zero-width
+ * spaces, BOMs) removed. Copying from documents and dashboards often adds them,
+ * and fetch refuses to send a header containing them.
+ */
+export const cleanApiKey = (key: string) => key.replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, "");
+
+/** A key can only be sent as a header if it's printable ASCII. */
+export const isSendableKey = (key: string) => /^[\x21-\x7E]+$/.test(key);
+
 export type FathomClient = ReturnType<typeof createFathomClient>;
 
 export function createFathomClient({
@@ -96,13 +106,17 @@ export function createFathomClient({
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
 }) {
+  const key = cleanApiKey(apiKey);
+
   async function get<S extends z.ZodType>(path: string, params: Record<string, string | undefined>, schema: S): Promise<z.infer<S>> {
     const url = new URL(baseUrl.replace(/\/$/, "") + path);
     for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, v);
 
+    if (!isSendableKey(key)) throw failure("unauthorized", path, "the key contains characters that can't be sent, such as curly quotes");
+
     let res: Response;
     try {
-      res = await fetchImpl(url, { headers: { "X-Api-Key": apiKey, Accept: "application/json" }, cache: "no-store" });
+      res = await fetchImpl(url, { headers: { "X-Api-Key": key, Accept: "application/json" }, cache: "no-store" });
     } catch (error) {
       throw failure("unavailable", path, `network error: ${networkCause(error)}`);
     }
