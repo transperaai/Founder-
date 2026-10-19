@@ -36,6 +36,8 @@ npm run dev                      # http://localhost:3000 (DEMO_MODE=true for dem
 | `AUTH_MICROSOFT_ENTRA_ID_ID` / `_SECRET` / `_ISSUER` | Microsoft sign-in (requests `Calendars.Read`) |
 | `FOUNDER_EMAILS` | Extra emails allowed to sign in (the first user to sign in is always allowed) |
 | `ANTHROPIC_API_KEY` | Claude API key for every AI step. Without it, AI steps report "not configured" and the UI falls back to manual entry |
+| `FATHOM_API_KEY` | Default Fathom key for the deployment (Vercel only). A key saved in Settings → Connect Fathom wins over it |
+| `FATHOM_API_BASE_URL` | Override the Fathom API base (tests point it at `tests/fake-fathom`). Defaults to `https://api.fathom.ai/external/v1` |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Inngest Cloud keys (set by the Vercel integration). Without them, analysis runs in-process after the response |
 | `INNGEST_DEV` | `1` to send jobs to a local Inngest dev server (`npx inngest-cli@latest dev`) |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token (set by the Blob integration); used to store and delete call media |
@@ -73,6 +75,14 @@ Every AI step calls `runStep` in `src/lib/ai/harness.ts`:
 - Token usage for every attempt is logged in `model_usages`, against the call when there is one.
 - Refusals fall back server-side (`fallbacks: "default"`).
 - Tests pass a fake `client`; nothing in the test suite calls the real API.
+
+## Fathom
+
+- **Connect:** Settings → Connect Fathom (or onboarding step 2). The pasted key is checked with `GET /meetings` and stored encrypted only if Fathom accepts it. Key order: saved key, then `FATHOM_API_KEY` unless the founder disconnected (`fathomUseDefaultKey`).
+- **Import:** Calls → Import from Fathom (or onboarding step 6) lists meetings a page at a time (`next_cursor`). Only ticked meetings become Calls (`importing`, role founder); a recording already imported is marked and never duplicated (`fathomRecordingId` is unique).
+- **Job:** `call/import.requested` fetches `GET /recordings/{id}/transcript` (throttled to 25/min, under Fathom's 30/min for heavy requests; 429s retry after `Retry-After`), stores normalised turns (each turn ends where the next starts), then emits `call/imported` (media copy, #7) and `call/analyse.requested`.
+- Retry on a Fathom call with no transcript re-runs the import; otherwise it re-runs analysis.
+- `src/lib/fathom/client.ts` is tested against `tests/fake-fathom` (fixtures in `fixtures.json`), which Playwright also runs on port 3101.
 
 ## Analysis pipeline
 

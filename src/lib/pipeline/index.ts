@@ -1,9 +1,10 @@
 import "server-only";
 import type { CallType } from "@prisma/client";
 import { runStep, type LlmClient } from "@/lib/ai/harness";
-import { emailDomain, isInternalCall } from "@/lib/calls/domain";
+import { isInternalCall } from "@/lib/calls/domain";
 import { firstSeconds, formatTurns, normaliseTurns, type Turn } from "@/lib/calls/transcript";
 import { db } from "@/lib/db";
+import { founderDomain } from "@/lib/founder";
 import { classifyCallPrompt } from "@/prompts/classify-call";
 import { segmentMomentsPrompt } from "@/prompts/segment-moments";
 import { momentRows } from "./moments";
@@ -68,7 +69,8 @@ function describeFailure(error: unknown): { code: string; message: string } {
   for (let e = error, depth = 0; e && typeof e === "object" && depth < 3; e = (e as { cause?: unknown }).cause, depth++) {
     const { code, name, message } = e as { code?: unknown; name?: unknown; message?: unknown };
     if (typeof code === "string" && code in failureMessages) return { code, message: failureMessages[code] };
-    if (name === "PipelineError" && typeof message === "string") return { code: "pipeline", message };
+    // Our own typed errors carry messages written to be shown (never client data).
+    if ((name === "PipelineError" || name === "FathomError") && typeof message === "string") return { code: String(name), message };
   }
   return { code: "unexpected", message: "Analysis failed unexpectedly. Retry, and check the server logs if it fails again." };
 }
@@ -92,11 +94,6 @@ async function normalise(callId: string) {
   if (turns.length === 0) throw new PipelineError("The call has no transcript to analyse.");
   if (changed) await db.call.update({ where: { id: callId }, data: { transcript: turns } });
   return null;
-}
-
-async function founderDomain() {
-  const founder = await db.user.findFirst({ orderBy: { createdAt: "asc" }, select: { email: true } });
-  return founder ? emailDomain(founder.email) : null;
 }
 
 async function classify(callId: string, client?: LlmClient): Promise<CallType> {

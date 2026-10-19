@@ -9,8 +9,8 @@ import { requireCurrentUser } from "@/lib/session";
 export const metadata = { title: "Get started · Founder²" };
 
 const steps = [
-  { title: "Tell us about your business", detail: "Five quick questions, turned into a profile you approve." },
   { title: "Connect Fathom", detail: "Paste your Fathom API key, or upload transcripts instead." },
+  { title: "Tell us about your business", detail: "Five quick questions, turned into a profile you approve." },
   { title: "Import and tag your calls", detail: "Pick 10–20 calls; tag type, outcome and who led them." },
   { title: "Build your playbook", detail: "We extract how you sell, filtered for quality." },
 ];
@@ -45,12 +45,9 @@ export default async function OnboardingPage() {
               Calendar access wasn&apos;t granted, so pre-call briefs are hidden. You can sign in again to grant it.
             </p>
           )}
-          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            Connecting Fathom is being built (GitHub issue #6), so setup starts with your business for now.
-          </p>
           <div className="flex flex-col gap-2">
-            <Link href="/onboarding/context" className={buttonVariants()}>
-              Start with your business
+            <Link href="/onboarding/fathom" className={buttonVariants()}>
+              Connect Fathom
             </Link>
             <form action={completeOnboarding}>
               <Button type="submit" variant="ghost" className="w-full">

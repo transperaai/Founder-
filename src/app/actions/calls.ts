@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod/v4";
 import { deleteCall as deleteCallAndDerived } from "@/lib/calls/delete";
 import { db } from "@/lib/db";
-import { requestAnalysis } from "@/lib/pipeline/dispatch";
+import { needsImport } from "@/lib/fathom/import";
+import { requestAnalysis, requestImport } from "@/lib/pipeline/dispatch";
 import { requireCurrentUser } from "@/lib/session";
 
 const tagSchema = z.discriminatedUnion("field", [
@@ -31,9 +32,11 @@ export async function setCallTag(callId: string, field: string, value: string) {
   revalidateCalls();
 }
 
+/** Re-runs whatever failed: the Fathom import if the transcript never arrived, otherwise analysis. */
 export async function retryCall(callId: string) {
   await requireCurrentUser();
-  await requestAnalysis([callId]);
+  const call = await db.call.findUniqueOrThrow({ where: { id: callId }, select: { source: true, transcript: true } });
+  await (needsImport(call) ? requestImport([callId]) : requestAnalysis([callId]));
   revalidateCalls();
 }
 

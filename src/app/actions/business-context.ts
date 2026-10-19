@@ -10,6 +10,7 @@ import {
   type BusinessProfile,
 } from "@/lib/business-context";
 import { db } from "@/lib/db";
+import { resolveFathomKey } from "@/lib/fathom/key";
 import { homeFor } from "@/lib/nav";
 import { requireCurrentUser } from "@/lib/session";
 import { businessProfilePrompt } from "@/prompts/business-profile";
@@ -64,6 +65,8 @@ export async function approveProfile(flow: Flow, form: FormData) {
   }
 
   if (flow === "onboarding") {
+    // With Fathom connected, the next step is picking calls to import.
+    if (resolveFathomKey(user)) redirect("/onboarding/import");
     await db.user.update({ where: { id: user.id }, data: { onboardedAt: user.onboardedAt ?? now } });
     redirect(homeFor(user.currentView));
   }

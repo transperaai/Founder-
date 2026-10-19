@@ -24,7 +24,11 @@ test("onboarding: placeholder, five questions, edit and approve the profile", as
   await signInAsDemoFounder(page);
   await expect(page).toHaveURL(/\/onboarding$/);
 
-  await page.getByRole("link", { name: "Start with your business" }).click();
+  // Without Fathom: choose to upload instead, then continue to the business questions.
+  await page.getByRole("link", { name: "Connect Fathom" }).click();
+  await expect(page).toHaveURL(/\/onboarding\/fathom$/);
+  await page.getByRole("link", { name: "I'll upload recordings instead" }).click();
+  await page.getByRole("link", { name: "Continue" }).click();
   await expect(page.getByText("Business context extraction")).toBeVisible();
   await expect(page.getByText("Coming soon")).toBeVisible();
 

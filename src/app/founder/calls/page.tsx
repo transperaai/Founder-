@@ -25,9 +25,14 @@ export default async function Page() {
           <p className="text-sm text-muted-foreground">
             Tag each call&apos;s type, outcome and who led it. In the full version this will be automated.
           </p>
-          <Link href="/founder/coverage" className="text-sm font-medium underline underline-offset-4">
-            Check coverage
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/founder/calls/import" className="text-sm font-medium underline underline-offset-4">
+              Import from Fathom
+            </Link>
+            <Link href="/founder/coverage" className="text-sm font-medium underline underline-offset-4">
+              Check coverage
+            </Link>
+          </div>
         </div>
         {calls.length === 0 ? (
           <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No calls yet. Connect Fathom or upload transcripts to import some.</p>

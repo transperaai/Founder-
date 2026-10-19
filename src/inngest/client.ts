@@ -7,4 +7,7 @@ export const inngestEnabled = () => Boolean(process.env.INNGEST_EVENT_KEY) || pr
 
 export const events = {
   analyseCall: "call/analyse.requested",
+  importCall: "call/import.requested",
+  /** A call's transcript is stored. Media copy (#7) listens for this. */
+  callImported: "call/imported",
 } as const;
