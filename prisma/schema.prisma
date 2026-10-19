@@ -1,0 +1,468 @@
+// Founder² data model. One organisation per deployment, so there is no tenant ID.
+// See the spec (GitHub issue #1) for the meaning of each entity.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Direct (unpooled) connection for migrations; Neon on Vercel sets both.
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+enum View {
+  founder
+  rep
+}
+
+enum CallSource {
+  fathom
+  upload
+}
+
+enum CallType {
+  discovery
+  pitch
+  account_review
+  negotiation
+  internal
+}
+
+enum CallOutcome {
+  won
+  lost
+  open
+}
+
+enum CallRole {
+  founder
+  rep
+}
+
+enum CallStatus {
+  importing
+  analysing
+  ready
+  skipped
+  error
+}
+
+enum MomentType {
+  opening
+  discovery_question
+  client_need
+  objection
+  pricing
+  value_story
+  buying_signal
+  decision
+  next_steps
+  small_talk
+}
+
+enum PlaybookItemType {
+  objection
+  technique
+  question
+  story
+  buying_signal
+  awareness
+  talk_track
+  decision_rule
+}
+
+enum PlaybookItemStatus {
+  observed
+  proven
+  filtered
+}
+
+enum PlaybookItemOrigin {
+  extracted
+  inbox_answer
+  seed
+}
+
+enum AwarenessLevel {
+  unaware
+  problem_aware
+  solution_aware
+  product_aware
+  most_aware
+}
+
+enum InboxItemType {
+  why_prompt
+  open_question
+  filtered_item
+  call_to_review
+  ask_founder
+}
+
+enum InboxItemStatus {
+  open
+  answered
+  dismissed
+}
+
+enum OpportunityStage {
+  spotted
+  in_conversation
+  proposal_sent
+  won
+  lost
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  name                  String
+  email                 String    @unique
+  image                 String?
+  authProvider          String?   @map("auth_provider")
+  calendarAccessGranted Boolean   @default(false) @map("calendar_access_granted")
+  /// Encrypted JSON blob of calendar OAuth tokens.
+  calendarTokens        String?   @map("calendar_tokens")
+  /// Encrypted Fathom API key.
+  fathomApiKey          String?   @map("fathom_api_key")
+  fathomWebhookId       String?   @map("fathom_webhook_id")
+  /// Encrypted Fathom webhook signing secret.
+  fathomWebhookSecret   String?   @map("fathom_webhook_secret")
+  currentView           View      @default(founder) @map("current_view")
+  onboardedAt           DateTime? @map("onboarded_at")
+  repWelcomedAt         DateTime? @map("rep_welcomed_at")
+
+  @@map("users")
+}
+
+model BusinessContext {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  version        Int       @unique
+  /// The five onboarding answers, keyed by question id.
+  answers        Json
+  /// Profile card: idealClients, offer, differentiators, salesProcess, commonObjections.
+  profileSummary Json?     @map("profile_summary")
+  approvedAt     DateTime? @map("approved_at")
+  promptVersion  String?   @map("prompt_version")
+
+  @@map("business_contexts")
+}
+
+model Call {
+  id                String      @id @default(cuid())
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  source            CallSource
+  fathomRecordingId String?     @unique @map("fathom_recording_id")
+  title             String
+  startedAt         DateTime    @map("started_at")
+  durationS         Int         @map("duration_s")
+  /// Normalised speaker turns: [{ speaker, email?, startS, endS, text }].
+  transcript        Json
+  attendeeEmails    String[]    @map("attendee_emails")
+  /// Email domain of the client side of the call; groups calls into a "deal".
+  clientDomain      String?     @map("client_domain")
+  mediaUrl          String?     @map("media_url")
+  callType          CallType?   @map("call_type")
+  outcome           CallOutcome @default(open)
+  role              CallRole
+  status            CallStatus  @default(importing)
+  errorMessage      String?     @map("error_message")
+
+  moments         Moment[]
+  scorecard       Scorecard?
+  selfReview      SelfReview?
+  feedback        Feedback?
+  comparisons     Comparison[]
+  founderComments FounderComment[]
+  opportunities   Opportunity[]
+  inboxItems      InboxItem[]
+  modelUsages     ModelUsage[]
+
+  @@index([role, status])
+  @@index([clientDomain])
+  @@map("calls")
+}
+
+model Moment {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  callId    String     @map("call_id")
+  call      Call       @relation(fields: [callId], references: [id], onDelete: Cascade)
+  type      MomentType
+  startS    Float      @map("start_s")
+  endS      Float      @map("end_s")
+  speaker   String
+  /// Verbatim transcript excerpt for the moment.
+  text      String
+  /// One-line summary.
+  summary   String
+  /// { callType, awarenessLevel?, dealStage? }
+  context   Json       @default("{}")
+
+  repComparisons     Comparison[]     @relation("RepMoment")
+  founderComparisons Comparison[]     @relation("FounderMoment")
+  founderComments    FounderComment[]
+  opportunities      Opportunity[]
+  inboxItems         InboxItem[]
+
+  @@index([callId])
+  @@index([type])
+  @@map("moments")
+}
+
+model PlaybookItem {
+  id                  String             @id @default(cuid())
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  type                PlaybookItemType
+  title               String
+  content             String
+  sourceMomentIds     String[]           @map("source_moment_ids")
+  status              PlaybookItemStatus @default(observed)
+  filterReason        String?            @map("filter_reason")
+  overriddenByFounder Boolean            @default(false) @map("overridden_by_founder")
+  /// Number of distinct won client domains among the source calls.
+  winCount            Int                @default(0) @map("win_count")
+  origin              PlaybookItemOrigin @default(extracted)
+
+  inboxItems InboxItem[]
+
+  @@index([status, type])
+  @@map("playbook_items")
+}
+
+model Skill {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  name      String   @unique
+  order     Int
+  habits    Habit[]
+
+  @@map("skills")
+}
+
+model Habit {
+  id                 String     @id @default(cuid())
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  /// Stable framework code, e.g. "H1".
+  code               String     @unique
+  skillId            String     @map("skill_id")
+  skill              Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  name               String
+  description        String
+  rubric             String
+  appliesToCallTypes CallType[] @map("applies_to_call_types")
+  /// Applies only when the call contains an objection moment (H9, H10).
+  requiresObjection  Boolean    @default(false) @map("requires_objection")
+  /// Computed from the transcript rather than judged by the model (H6).
+  computed           Boolean    @default(false)
+  orderInPath        Int        @map("order_in_path")
+
+  progress HabitProgress?
+
+  @@map("habits")
+}
+
+model HabitProgress {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  habitId      String    @unique @map("habit_id")
+  habit        Habit     @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  isFocus      Boolean   @default(false) @map("is_focus")
+  /// Results for the last 5 applicable calls, newest last.
+  streak       Boolean[] @default([])
+  masteredAt   DateTime? @map("mastered_at")
+  celebratedAt DateTime? @map("celebrated_at")
+
+  @@map("habit_progress")
+}
+
+model Scorecard {
+  id               String          @id @default(cuid())
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  callId           String          @unique @map("call_id")
+  call             Call            @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callType         CallType        @map("call_type")
+  total            Int
+  /// [{ habitCode, done, evidenceMomentId, note }]
+  habitResults     Json            @map("habit_results")
+  awarenessLevel   AwarenessLevel? @map("awareness_level")
+  awarenessMatched Boolean?        @map("awareness_matched")
+  benchmarkTotal   Int?            @map("benchmark_total")
+  promptVersion    String?         @map("prompt_version")
+
+  @@map("scorecards")
+}
+
+model SelfReview {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  callId    String   @unique @map("call_id")
+  call      Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  rating    Int?
+  redoNote  String?  @map("redo_note")
+  skipped   Boolean  @default(false)
+
+  @@map("self_reviews")
+}
+
+model Feedback {
+  id                  String   @id @default(cuid())
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  callId              String   @unique @map("call_id")
+  call                Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  strengths           String[]
+  improvements        String[]
+  /// [{ momentId, summary, repAnswer, founderAnswerItemId }]
+  objections          Json
+  /// [{ momentId, description }]
+  missedOpportunities Json     @map("missed_opportunities")
+
+  @@map("feedback")
+}
+
+model PlaceholderClip {
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  momentType MomentType @unique @map("moment_type")
+  title      String
+  transcript String
+  mediaUrl   String     @map("media_url")
+  startS     Float      @map("start_s")
+  endS       Float      @map("end_s")
+
+  comparisons Comparison[]
+
+  @@map("placeholder_clips")
+}
+
+model Comparison {
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  callId            String           @map("call_id")
+  call              Call             @relation(fields: [callId], references: [id], onDelete: Cascade)
+  repMomentId       String           @map("rep_moment_id")
+  repMoment         Moment           @relation("RepMoment", fields: [repMomentId], references: [id], onDelete: Cascade)
+  founderMomentId   String?          @map("founder_moment_id")
+  founderMoment     Moment?          @relation("FounderMoment", fields: [founderMomentId], references: [id], onDelete: SetNull)
+  placeholderClipId String?          @map("placeholder_clip_id")
+  placeholderClip   PlaceholderClip? @relation(fields: [placeholderClipId], references: [id], onDelete: SetNull)
+  matchScore        Float?           @map("match_score")
+  differenceNote    String           @map("difference_note")
+  hidden            Boolean          @default(false)
+  deleted           Boolean          @default(false)
+  notRelevant       Boolean          @default(false) @map("not_relevant")
+
+  @@index([callId])
+  @@map("comparisons")
+}
+
+model FounderComment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  callId    String   @map("call_id")
+  call      Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  momentId  String   @map("moment_id")
+  moment    Moment   @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  text      String?
+  audioUrl  String?  @map("audio_url")
+
+  @@index([callId])
+  @@map("founder_comments")
+}
+
+model InboxItem {
+  id                    String          @id @default(cuid())
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+  type                  InboxItemType
+  title                 String
+  body                  String
+  priority              Int             @default(50)
+  status                InboxItemStatus @default(open)
+  answerText            String?         @map("answer_text")
+  answerAudioUrl        String?         @map("answer_audio_url")
+  answeredAt            DateTime?       @map("answered_at")
+  /// Prevents duplicates when the pipeline re-runs, e.g. "why:<momentId>".
+  dedupeKey             String?         @unique @map("dedupe_key")
+  sourceCallId          String?         @map("source_call_id")
+  sourceCall            Call?           @relation(fields: [sourceCallId], references: [id], onDelete: Cascade)
+  sourceMomentId        String?         @map("source_moment_id")
+  sourceMoment          Moment?         @relation(fields: [sourceMomentId], references: [id], onDelete: Cascade)
+  sourcePlaybookItemId  String?         @map("source_playbook_item_id")
+  sourcePlaybookItem    PlaybookItem?   @relation(fields: [sourcePlaybookItemId], references: [id], onDelete: Cascade)
+  /// Playbook item created from the founder's answer.
+  createdPlaybookItemId String?         @map("created_playbook_item_id")
+
+  askQuestion AskQuestion?
+
+  @@index([status, priority])
+  @@map("inbox_items")
+}
+
+model Opportunity {
+  id            String           @id @default(cuid())
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  callId        String?          @map("call_id")
+  call          Call?            @relation(fields: [callId], references: [id], onDelete: SetNull)
+  momentId      String?          @map("moment_id")
+  moment        Moment?          @relation(fields: [momentId], references: [id], onDelete: SetNull)
+  description   String
+  owner         String
+  nextStep      String?          @map("next_step")
+  dueDate       DateTime?        @map("due_date")
+  /// Whole currency units.
+  valueEstimate Int?             @map("value_estimate")
+  stage         OpportunityStage @default(spotted)
+  finalValue    Int?             @map("final_value")
+  closedAt      DateTime?        @map("closed_at")
+
+  @@map("opportunities")
+}
+
+model AskQuestion {
+  id            String     @id @default(cuid())
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  question      String
+  answer        String?
+  sourceItemIds String[]   @map("source_item_ids")
+  routedToInbox Boolean    @default(false) @map("routed_to_inbox")
+  inboxItemId   String?    @unique @map("inbox_item_id")
+  inboxItem     InboxItem? @relation(fields: [inboxItemId], references: [id], onDelete: SetNull)
+
+  @@map("ask_questions")
+}
+
+model ModelUsage {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  callId        String?  @map("call_id")
+  call          Call?    @relation(fields: [callId], references: [id], onDelete: SetNull)
+  step          String
+  model         String
+  promptVersion String?  @map("prompt_version")
+  inputTokens   Int      @map("input_tokens")
+  outputTokens  Int      @map("output_tokens")
+
+  @@index([callId])
+  @@map("model_usages")
+}
