@@ -67,6 +67,24 @@ const messages: Record<FathomErrorCode, string> = {
   invalid_response: "Fathom returned something we couldn't read.",
 };
 
+/**
+ * A typed error whose message names the cause (status, network error code or
+ * the field that didn't match), so failures are diagnosable. Paths and causes
+ * carry no client data.
+ */
+function failure(code: FathomErrorCode, path: string, cause: string, retryAfterS?: number) {
+  console.error(`Fathom ${path} failed: ${cause}`);
+  return new FathomError(code, `${messages[code]} (${cause})`, retryAfterS);
+}
+
+/** The most specific code from a fetch failure, e.g. ENOTFOUND or UND_ERR_CONNECT_TIMEOUT. */
+function networkCause(error: unknown) {
+  type Cause = { code?: string; message?: string; errors?: Cause[] };
+  const cause = (error as { cause?: Cause })?.cause;
+  // Connection failures can arrive as an AggregateError of per-address attempts.
+  return cause?.code ?? cause?.errors?.[0]?.code ?? cause?.message ?? (error as Error)?.name ?? "unknown";
+}
+
 export type FathomClient = ReturnType<typeof createFathomClient>;
 
 export function createFathomClient({
@@ -85,8 +103,8 @@ export function createFathomClient({
     let res: Response;
     try {
       res = await fetchImpl(url, { headers: { "X-Api-Key": apiKey, Accept: "application/json" }, cache: "no-store" });
-    } catch {
-      throw new FathomError("unavailable", messages.unavailable);
+    } catch (error) {
+      throw failure("unavailable", path, `network error: ${networkCause(error)}`);
     }
     if (!res.ok) {
       const code: FathomErrorCode =
@@ -96,11 +114,11 @@ export function createFathomClient({
         : res.status >= 500 ? "unavailable"
         : "bad_request";
       const retryAfter = Number(res.headers.get("retry-after"));
-      throw new FathomError(code, messages[code], Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined);
+      throw failure(code, path, `HTTP ${res.status}`, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined);
     }
     const body = await res.json().catch(() => undefined);
     const parsed = schema.safeParse(body);
-    if (!parsed.success) throw new FathomError("invalid_response", messages.invalid_response);
+    if (!parsed.success) throw failure("invalid_response", path, `unexpected shape at ${parsed.error.issues[0]?.path.join(".") || "root"}`);
     return parsed.data;
   }
 
