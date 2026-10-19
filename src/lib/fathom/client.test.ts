@@ -53,6 +53,8 @@ describe("Fathom client", () => {
     expect(error).toBeInstanceOf(FathomError);
     expect(error.code).toBe(code);
     if (code === "rate_limited") expect(error.retryAfterS).toBe(17);
+    // The cause is in the message so a failure on a deployment can be diagnosed.
+    if (code !== "unauthorized") expect(error.message).toMatch(/\(HTTP \d{3}\)$/);
   });
 
   it("maps a missing recording to not_found", async () => {
@@ -61,12 +63,20 @@ describe("Fathom client", () => {
   });
 
   it("treats an unreachable server as unavailable", async () => {
-    const client = createFathomClient({ apiKey: VALID_KEY, baseUrl: "http://127.0.0.1:9/external/v1" });
-    expect((await client.listMeetings().catch((e) => e)).code).toBe("unavailable");
+    // A port that was just free: nothing is listening on it.
+    const fake = createFakeFathom();
+    const baseUrl = await fake.start();
+    await fake.stop();
+    const client = createFathomClient({ apiKey: VALID_KEY, baseUrl });
+    const error = await client.listMeetings().catch((e) => e);
+    expect(error.code).toBe("unavailable");
+    expect(error.message).toMatch(/\(network error: ECONNREFUSED\)$/);
   });
 
   it("rejects a response that doesn't match the documented shape", async () => {
     const client = createFathomClient({ apiKey: VALID_KEY, baseUrl: "http://x", fetch: async () => Response.json({ nope: true }) });
-    expect((await client.listMeetings().catch((e) => e)).code).toBe("invalid_response");
+    const error = await client.listMeetings().catch((e) => e);
+    expect(error.code).toBe("invalid_response");
+    expect(error.message).toMatch(/\(unexpected shape at items\)$/);
   });
 });

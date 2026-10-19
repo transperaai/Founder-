@@ -11,7 +11,7 @@ export type FathomKeySource = "saved" | "default";
  */
 export function resolveFathomKey(
   user: { fathomApiKey: string | null; fathomUseDefaultKey: boolean } | null,
-  defaultKey = process.env.FATHOM_API_KEY,
+  defaultKey = process.env.FATHOM_API_KEY?.trim(),
 ): { key: string; source: FathomKeySource } | null {
   if (user?.fathomApiKey) return { key: decrypt(user.fathomApiKey), source: "saved" };
   if (defaultKey && (user?.fathomUseDefaultKey ?? true)) return { key: defaultKey, source: "default" };
