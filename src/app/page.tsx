@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { homeFor } from "@/lib/nav";
-import { requireCurrentUser } from "@/lib/session";
+import { requireOnboardedUser } from "@/lib/session";
 
 export default async function Home() {
-  const user = await requireCurrentUser();
+  const user = await requireOnboardedUser();
   redirect(homeFor(user.currentView));
 }

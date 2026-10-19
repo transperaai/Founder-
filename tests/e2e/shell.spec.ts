@@ -1,4 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { signInAsDemoFounder } from "./helpers";
+
+test.beforeEach(async ({ page }) => {
+  await signInAsDemoFounder(page);
+});
 
 test("switches between Founder and Rep view, persisting the choice", async ({ page }) => {
   await page.goto("/founder/inbox");

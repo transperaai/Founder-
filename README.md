@@ -13,7 +13,7 @@ npm install                      # also runs `prisma generate`
 cp .env.example .env             # set DATABASE_URL to a local Postgres
 npx prisma migrate dev           # create the schema
 npm run seed                     # load the demo data (Peter's agency)
-npm run dev                      # http://localhost:3000
+npm run dev                      # http://localhost:3000 (DEMO_MODE=true for demo sign-in)
 ```
 
 | Script | What it does |
@@ -30,6 +30,21 @@ npm run dev                      # http://localhost:3000
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string (pooled on Neon) |
 | `DATABASE_URL_UNPOOLED` | Direct connection for migrations (same as `DATABASE_URL` locally) |
+| `AUTH_SECRET` | Auth.js session secret |
+| `ENCRYPTION_KEY` | 32-byte base64 key; encrypts calendar tokens and API keys at rest |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google sign-in (requests `calendar.readonly`) |
+| `AUTH_MICROSOFT_ENTRA_ID_ID` / `_SECRET` / `_ISSUER` | Microsoft sign-in (requests `Calendars.Read`) |
+| `FOUNDER_EMAILS` | Extra emails allowed to sign in (the first user to sign in is always allowed) |
+| `DEMO_MODE` | `true` adds "Continue as the demo founder" and seeds demo data on Vercel builds. Never with real client data |
+
+## Sign-in
+
+Google and Microsoft only, with calendar read access requested in the same consent. Calendar access is optional: Google lets the founder untick it, and the app records whether it was granted. One organisation per deployment: the first person to sign in becomes the founder; after that only existing users and `FOUNDER_EMAILS` can sign in. First sign-in goes to `/onboarding`; returning users go to their view's home.
+
+To register OAuth apps:
+
+- **Google:** OAuth client (Web), redirect URI `https://<host>/api/auth/callback/google`; enable the Google Calendar API.
+- **Microsoft:** Entra app registration, redirect URI `https://<host>/api/auth/callback/microsoft-entra-id`; delegated Graph permissions `User.Read`, `Calendars.Read`, `offline_access`.
 
 ## Demo data
 
