@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { PageHeader, UnderConstruction } from "@/components/placeholders";
+import { FathomConnectionStatus } from "@/components/fathom/connection-status";
+import { PageHeader } from "@/components/placeholders";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolveFathomKey } from "@/lib/fathom/key";
 import { requireCurrentUser } from "@/lib/session";
 
 export const metadata = { title: "Settings · Founder²" };
@@ -44,7 +46,17 @@ export default async function SettingsPage() {
             </Link>
           </CardContent>
         </Card>
-        <UnderConstruction issue={6} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Fathom</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 text-sm">
+            <FathomConnectionStatus source={resolveFathomKey(user)?.source ?? null} />
+            <Link href="/founder/settings/fathom" className="underline underline-offset-4">
+              Manage your Fathom connection
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </>
   );

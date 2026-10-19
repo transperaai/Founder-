@@ -128,6 +128,8 @@ model User {
   calendarTokens        String?   @map("calendar_tokens")
   /// Encrypted Fathom API key.
   fathomApiKey          String?   @map("fathom_api_key")
+  /// Whether FATHOM_API_KEY (deployment default) may be used when no key is saved. Removing the connection turns it off.
+  fathomUseDefaultKey   Boolean   @default(true) @map("fathom_use_default_key")
   fathomWebhookId       String?   @map("fathom_webhook_id")
   /// Encrypted Fathom webhook signing secret.
   fathomWebhookSecret   String?   @map("fathom_webhook_secret")
