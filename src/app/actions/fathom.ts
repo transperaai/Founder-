@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import { encrypt } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { createFathomClient, FathomError } from "@/lib/fathom/client";
+import { cleanApiKey, createFathomClient, FathomError } from "@/lib/fathom/client";
 import { createImportedCalls } from "@/lib/fathom/import";
 import { founderFathomClient } from "@/lib/fathom/key";
 import { meetingSummary, type MeetingSummary } from "@/lib/fathom/mapping";
@@ -20,7 +20,7 @@ const afterConnect = (flow: Flow) => (flow === "onboarding" ? "/onboarding/conte
 /** Validates a pasted key with a cheap GET /meetings, then stores it encrypted. An invalid key is never stored. */
 export async function saveFathomKey(flow: Flow, form: FormData) {
   const user = await requireCurrentUser();
-  const apiKey = String(form.get("apiKey") ?? "").trim();
+  const apiKey = cleanApiKey(String(form.get("apiKey") ?? ""));
   if (!apiKey) redirect(`${keyPath(flow)}?error=empty`);
 
   try {
