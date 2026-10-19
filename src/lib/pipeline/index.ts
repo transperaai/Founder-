@@ -4,11 +4,14 @@ import { runStep, type LlmClient } from "@/lib/ai/harness";
 import { isInternalCall } from "@/lib/calls/domain";
 import { firstSeconds, formatTurns, normaliseTurns, type Turn } from "@/lib/calls/transcript";
 import { db } from "@/lib/db";
-import { founderDomain } from "@/lib/founder";
+import { founderDomain, getFounder } from "@/lib/founder";
+import { founderAverage } from "@/lib/scoring/benchmarks";
+import { applicableHabits, buildHabitResults, clientTalkShare, scoreTotal, talkRatioResult } from "@/lib/scoring";
 import { classifyCallPrompt } from "@/prompts/classify-call";
+import { scoreHabitsPrompt } from "@/prompts/score-habits";
 import { segmentMomentsPrompt } from "@/prompts/segment-moments";
 import { momentRows } from "./moments";
-import { classificationSchema, segmentationSchema } from "./schemas";
+import { classificationSchema, scorecardSchema, segmentationSchema } from "./schemas";
 
 // The analysis pipeline: normalise → classify → segment, then the founder or
 // rep path (later tickets). Each stage is idempotent, so a stage can be retried
@@ -34,7 +37,9 @@ export async function analyseCall(callId: string, { client, run = runInline }: P
   }
 
   await run("segment", () => segment(callId, callType, client));
-  // Founder path (#10) and rep path (#9, #11) hang off here.
+  // Founder calls are scored too: they form the per-call-type benchmark.
+  await run("score", () => score(callId, callType, client));
+  // Founder path (#10) and rep path (#11) hang off here.
   await run("finish", () => db.call.update({ where: { id: callId }, data: { status: "ready" } }).then(() => null));
   return "ready" as const;
 }
@@ -129,6 +134,7 @@ async function skip(callId: string) {
   // An internal call has nothing to coach or learn from: drop anything a previous run derived.
   await db.$transaction([
     db.moment.deleteMany({ where: { callId } }),
+    db.scorecard.deleteMany({ where: { callId } }),
     db.call.update({ where: { id: callId }, data: { status: "skipped" } }),
   ]);
   return null;
@@ -152,4 +158,50 @@ async function segment(callId: string, callType: CallType, client?: LlmClient) {
     db.moment.createMany({ data: rows.map((m) => ({ ...m, callId })) }),
   ]);
   return rows.length;
+}
+
+async function score(callId: string, callType: CallType, client?: LlmClient) {
+  const call = await db.call.findUniqueOrThrow({ where: { id: callId }, include: { moments: { orderBy: { startS: "asc" } } } });
+  const habits = await db.habit.findMany({ orderBy: [{ skill: { order: "asc" } }, { createdAt: "asc" }] });
+  const applicable = applicableHabits(habits, callType, call.moments.some((m) => m.type === "objection"));
+  const judged = applicable.filter((h) => !h.computed);
+
+  // The model sees short labels (m1, m2…) rather than database ids.
+  const labels = new Map(call.moments.map((m, i) => [`m${i + 1}`, m.id]));
+  const turns = call.transcript as Turn[];
+  const { output, promptVersion } = await runStep({
+    step: "score_habits",
+    prompt: scoreHabitsPrompt,
+    vars: {
+      callType,
+      habits: judged.map((h) => ({ code: h.code, name: h.name, rubric: h.rubric })),
+      moments: call.moments.map((m, i) => ({ label: `m${i + 1}`, type: m.type, startS: m.startS, endS: m.endS, speaker: m.speaker, summary: m.summary })),
+      transcript: formatTurns(turns),
+    },
+    schema: scorecardSchema(judged.map((h) => h.code), [...labels.keys()]),
+    callId,
+    client,
+  });
+
+  const founder = await getFounder();
+  const ownerName = call.role === "founder" ? (founder?.name ?? null) : (turns[0]?.speaker ?? null);
+  const share = clientTalkShare(turns, await founderDomain(), ownerName);
+  const habitResults = buildHabitResults(
+    applicable,
+    output.habits.map((r) => ({ habitCode: r.habitCode, done: r.done, evidenceMomentId: r.evidenceMoment ? (labels.get(r.evidenceMoment) ?? null) : null, note: r.note })),
+    (habit) => talkRatioResult(habit.code, share),
+  );
+
+  const data = {
+    callType,
+    total: scoreTotal(habitResults),
+    habitResults,
+    awarenessLevel: output.awarenessLevel,
+    awarenessMatched: output.awarenessMatched,
+    promptVersion,
+  };
+  // Replace, never append: re-scoring a call overwrites its scorecard.
+  await db.scorecard.upsert({ where: { callId }, create: { callId, ...data }, update: data });
+  await db.scorecard.update({ where: { callId }, data: { benchmarkTotal: await founderAverage(callType) } });
+  return data.total;
 }

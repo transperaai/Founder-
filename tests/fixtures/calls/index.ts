@@ -1,5 +1,6 @@
 import type { CallRole } from "@prisma/client";
 import { db } from "@/lib/db";
+import { accountManagerPath, habits, skills } from "../../../prisma/seed/habits";
 import discovery from "./discovery-northwind.json";
 import internal from "./internal-standup.json";
 
@@ -28,4 +29,24 @@ export function createCall(fixture: CallFixture, role: CallRole = "founder") {
       role,
     },
   });
+}
+
+/** The seed framework (H1–H14), as the scoring step reads it from the database. */
+export async function createHabits() {
+  for (const [order, name] of skills.entries()) await db.skill.create({ data: { name, order } });
+  for (const h of habits) {
+    await db.habit.create({
+      data: {
+        code: h.code,
+        skill: { connect: { name: h.skill } },
+        name: h.name,
+        description: h.description,
+        rubric: h.rubric,
+        appliesToCallTypes: h.appliesTo,
+        requiresObjection: h.requiresObjection ?? false,
+        computed: h.computed ?? false,
+        orderInPath: accountManagerPath.indexOf(h.code) + 1,
+      },
+    });
+  }
 }
