@@ -1,23 +1,25 @@
 import "server-only";
-import { connection } from "next/server";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-/**
- * Returns the signed-in user.
- *
- * Until real sign-in lands (issue #4), this resolves to the founder: the first
- * user in the database, which is the seeded demo founder in demo mode.
- */
+/** The signed-in user, or null. */
 export async function getCurrentUser() {
-  // Per-request: never prerender a screen that depends on the user.
-  await connection();
-  return db.user.findFirst({ orderBy: { createdAt: "asc" } });
+  const session = await auth();
+  const id = session?.user?.id;
+  return id ? db.user.findUnique({ where: { id } }) : null;
 }
 
+/** The signed-in user; redirects to sign-in otherwise. */
 export async function requireCurrentUser() {
   const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("No user found. Run `npm run seed` to load the demo data.");
-  }
+  if (!user) redirect("/signin");
+  return user;
+}
+
+/** The signed-in user who has been through onboarding; redirects otherwise. */
+export async function requireOnboardedUser() {
+  const user = await requireCurrentUser();
+  if (!user.onboardedAt) redirect("/onboarding");
   return user;
 }

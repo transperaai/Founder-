@@ -1,12 +1,13 @@
 import type { View } from "@prisma/client";
 import { navFor } from "@/lib/nav";
-import { requireCurrentUser } from "@/lib/session";
+import { signOutAction } from "@/app/actions/auth";
+import { requireOnboardedUser } from "@/lib/session";
 import { NavLinks } from "./nav-links";
 import { ViewSwitch } from "./view-switch";
 
 /** Layout for every signed-in screen. `view` is the view this route belongs to. */
 export async function AppShell({ view, children }: { view: View; children: React.ReactNode }) {
-  const user = await requireCurrentUser();
+  const user = await requireOnboardedUser();
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-56 shrink-0 border-r bg-sidebar px-3 py-4 md:block">
@@ -21,7 +22,14 @@ export async function AppShell({ view, children }: { view: View; children: React
             Founder<sup>2</sup>
           </span>
           <ViewSwitch current={view} />
-          <span className="text-sm text-muted-foreground">{user.name}</span>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>{user.name}</span>
+            <form action={signOutAction}>
+              <button type="submit" className="hover:text-foreground">
+                Sign out
+              </button>
+            </form>
+          </div>
         </header>
         <div className="border-b px-3 py-2 md:hidden">
           <NavLinks items={navFor(view)} />
